@@ -31,16 +31,20 @@ distance_y = [
 #城市距离和信息素   
 distance_graph = [ [0.0 for col in range(city_num)] for raw in range(city_num)]
 pheromone_graph = [ [1.0 for col in range(city_num)] for raw in range(city_num)]
- 
+start_index = random.randint(0,city_num - 1)
+end_index = random.randint(0,city_num-1)
+
  
 #----------- 蚂蚁 -----------
 class Ant(object):
  
     # 初始化
-    def __init__(self,ID):
+    def __init__(self,ID,start_index,end_index):
         
         self.ID = ID                 # ID
         self.__clean_data()          # 随机初始化出生点
+        self.start_index = start_index
+        self.end_index = end_index
  
     # 初始数据
     def __clean_data(self):
@@ -51,7 +55,7 @@ class Ant(object):
         self.current_city = -1       # 当前停留的城市
         self.open_table_city = [True for i in range(city_num)] # 探索城市的状态
         
-        city_index = random.randint(0,city_num-1) # 随机初始出生点
+        city_index = 0 # 随机初始出生点 random.randint(0,city_num - 1) last version
         self.current_city = city_index
         self.path.append(city_index)
         self.open_table_city[city_index] = False
@@ -98,7 +102,7 @@ class Ant(object):
             next_city = random.randint(0, city_num - 1)
             while ((self.open_table_city[next_city]) == False):  # if==False,说明已经遍历过了
                 next_city = random.randint(0, city_num - 1)
- 
+    
         # 返回下一个城市序号
         return next_city
     
@@ -106,8 +110,7 @@ class Ant(object):
     def __cal_total_distance(self):
         
         temp_distance = 0.0
- 
-        for i in range(1, city_num):
+        for i in range(self.path.__len__()):
             start, end = self.path[i], self.path[i-1]
             temp_distance += distance_graph[start][end]
  
@@ -137,6 +140,7 @@ class Ant(object):
             # 移动到下一个城市
             next_city =  self.__choice_next_city()
             self.__move(next_city)
+            if(next_city == self.end_index): break #修改处
  
         # 计算路径总长度
         self.__cal_total_distance()
@@ -229,8 +233,8 @@ class TSP(object):
             for j in range(city_num):
                 pheromone_graph[i][j] = 1.0
                 
-        self.ants = [Ant(ID) for ID in range(ant_num)]  # 初始蚁群
-        self.best_ant = Ant(-1)                          # 初始最优解
+        self.ants = [Ant(ID,start_index,end_index) for ID in range(ant_num)]  # 初始蚁群
+        self.best_ant = Ant(-1,start_index,end_index)                          # 初始最优解
         self.best_ant.total_distance = 1 << 31           # 初始最大距离
         self.iter = 1                                    # 初始化迭代次数 
             
@@ -300,15 +304,15 @@ class TSP(object):
         # 获取每只蚂蚁在其路径上留下的信息素
         temp_pheromone = [[0.0 for col in range(city_num)] for raw in range(city_num)]
         for ant in self.ants:
-            for i in range(1,city_num):
+            for i in range(ant.path.__len__()):
                 start, end = ant.path[i-1], ant.path[i]
                 # 在路径上的每两个相邻城市间留下信息素，与路径总距离反比
                 temp_pheromone[start][end] += Q / ant.total_distance  #蚁圈模型（需改进）
                 temp_pheromone[end][start] = temp_pheromone[start][end]
  
         # 更新所有城市之间的信息素，旧信息素衰减加上新迭代信息素
-        for i in range(city_num):
-            for j in range(city_num):
+        for i in range(ant.path.__len__()):
+            for j in range(ant.path.__len__()):
                 pheromone_graph[i][j] = pheromone_graph[i][j] * RHO + temp_pheromone[i][j]
  
     # 主循环
@@ -319,3 +323,5 @@ class TSP(object):
                 
 if __name__ == '__main__':
     TSP(tkinter.Tk()).mainloop()
+
+    
