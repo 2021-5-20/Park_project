@@ -1,6 +1,8 @@
 import random
 import copy
 import time
+from turtle import distance
+import data
 import sys
 import math
 import tkinter #//GUI模块
@@ -16,23 +18,25 @@ BETA:Beta值越大，蚁群越就容易选择局部较短路径，这时算法�
      加快，但是随机性不高，容易得到局部的相对最优
 '''
 (ALPHA, BETA, RHO, Q) = (1.0,2.0,0.5,100.0)
+w = [0.25,0.25,0.25,0.25] # w1,w2,w3,w4相应权重
+
 # 城市数，蚁群
 (city_num, ant_num) = (50,50)
 distance_x = [
     178,272,176,171,650,499,267,703,408,437,491,74,532,
     416,626,42,271,359,163,508,229,576,147,560,35,714,
     757,517,64,314,675,690,391,628,87,240,705,699,258,
-    428,614,36,360,482,666,597,209,201,492,294]
+    428,614,36,360,482,666,597,209,201,492,584]
 distance_y = [
     170,395,198,151,242,556,57,401,305,421,267,105,525,
     381,244,330,395,169,141,380,153,442,528,329,232,48,
     498,265,343,120,165,50,433,63,491,275,348,222,288,
-    490,213,524,244,114,104,552,70,425,227,331]
+    490,213,524,244,114,104,552,70,425,227,586]
 #城市距离和信息素   
 distance_graph = [ [0.0 for col in range(city_num)] for raw in range(city_num)]
 pheromone_graph = [ [1.0 for col in range(city_num)] for raw in range(city_num)]
-start_index = random.randint(0,city_num - 1)
-end_index = random.randint(0,city_num-1)
+start_index = 0
+end_index = 49
 
  
 #----------- 蚂蚁 -----------
@@ -179,7 +183,10 @@ class TSP(object):
             for j in range(city_num):
                 temp_distance = pow((distance_x[i] - distance_x[j]), 2) + pow((distance_y[i] - distance_y[j]), 2)
                 temp_distance = pow(temp_distance, 0.5)
-                distance_graph[i][j] =float(int(temp_distance + 0.5))
+                distance_graph[i][j] =float(int(temp_distance + 0.5)) # 已经计算好各点之间的距离
+        distance_graph[start_index][end_index] = 1000000
+        
+    
  
     # 按键响应程序
     def __bindEvents(self):
@@ -204,7 +211,7 @@ class TSP(object):
         self.clear()     # 清除信息 
         self.nodes = []  # 节点坐标
         self.nodes2 = [] # 节点对象
- 
+        self.nodes3 = [] # 出发点到目标点
         # 初始化城市节点
         for i in range(len(distance_x)):
             # 在画布上随机初始坐标
@@ -224,6 +231,20 @@ class TSP(object):
                     text = '('+str(x)+','+str(y)+')',    # 所绘制文字的内容
                     fill = 'black'                       # 所绘制文字的颜色为灰色
                 )
+        x_green = [distance_x[start_index],distance_x[end_index]]
+        y_green = [distance_y[start_index],distance_y[end_index]]
+        for i in range(len(x_green)):
+            x = x_green[i]
+            y = y_green[i]
+            self.nodes3.append((x, y))
+            node = self.canvas.create_oval(x - self.__r,
+                    y - self.__r, x + self.__r, y + self.__r,
+                    fill = "#00FF00",      # 填充绿色
+                    outline = "#000000",   # 轮廓白色
+                    tags = "node",
+                )
+
+        
             
         # 顺序连接城市
         #self.line(range(city_num))
@@ -232,7 +253,6 @@ class TSP(object):
         for i in range(city_num):
             for j in range(city_num):
                 pheromone_graph[i][j] = 1.0
-                
         self.ants = [Ant(ID,start_index,end_index) for ID in range(ant_num)]  # 初始蚁群
         self.best_ant = Ant(-1,start_index,end_index)                          # 初始最优解
         self.best_ant.total_distance = 1 << 31           # 初始最大距离
@@ -248,7 +268,8 @@ class TSP(object):
             return i2
         
         # order[-1]为初始值
-        reduce(line2, order, order[-1])
+        n = len(order)
+        reduce(line2, order, order[n - 2])
  
     # 清除画布
     def clear(self):
@@ -289,7 +310,7 @@ class TSP(object):
                     self.best_ant = copy.deepcopy(ant)
             # 更新信息素
             self.__update_pheromone_gragh()
-            print (u"迭代次数：",self.iter,u"最佳路径总距离：",int(self.best_ant.total_distance))
+            print (u"迭代次数：",self.iter,u"最佳路径总距离：",int(self.best_ant.total_distance-1000000))
             # 连线
             self.line(self.best_ant.path)
             # 设置标题
@@ -324,4 +345,3 @@ class TSP(object):
 if __name__ == '__main__':
     TSP(tkinter.Tk()).mainloop()
 
-    
