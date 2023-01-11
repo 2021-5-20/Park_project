@@ -1,8 +1,7 @@
 import random
 import copy
 import time
-from turtle import distance
-import data
+#import data
 import sys
 import math
 import tkinter #//GUI模块
@@ -14,9 +13,11 @@ from functools import reduce
 '''
 ALPHA:信息启发因子，值越大，则蚂蚁选择之前走过的路径可能性就越大
       ，值越小，则蚁群搜索范围就会减少，容易陷入局部最优
-BETA:Beta值越大，蚁群越就容易选择局部较短路径，这时算法收敛速度会
+BETA:Beta值越大,蚁群越就容易选择局部较短路径,这时算法收敛速度会
      加快，但是随机性不高，容易得到局部的相对最优
 '''
+
+
 (ALPHA, BETA, RHO, Q) = (1.0,2.0,0.5,100.0)
 w = [0.25,0.25,0.25,0.25] # w1,w2,w3,w4相应权重
 
@@ -26,17 +27,23 @@ distance_x = [
     178,272,176,171,650,499,267,703,408,437,491,74,532,
     416,626,42,271,359,163,508,229,576,147,560,35,714,
     757,517,64,314,675,690,391,628,87,240,705,699,258,
-    428,614,36,360,482,666,597,209,201,492,584]
+    428,614,36,360,482,666,597,209,201,492,650]
 distance_y = [
     170,395,198,151,242,556,57,401,305,421,267,105,525,
     381,244,330,395,169,141,380,153,442,528,329,232,48,
     498,265,343,120,165,50,433,63,491,275,348,222,288,
-    490,213,524,244,114,104,552,70,425,227,586]
+    490,213,524,244,114,104,552,70,425,227,598]
 #城市距离和信息素   
 distance_graph = [ [0.0 for col in range(city_num)] for raw in range(city_num)]
 pheromone_graph = [ [1.0 for col in range(city_num)] for raw in range(city_num)]
 start_index = 0
 end_index = 49
+#停车场到目标物的距< 2km
+distance_to_park = []
+for i in range(50):
+    
+
+
 
  
 #----------- 蚂蚁 -----------
@@ -183,7 +190,8 @@ class TSP(object):
             for j in range(city_num):
                 temp_distance = pow((distance_x[i] - distance_x[j]), 2) + pow((distance_y[i] - distance_y[j]), 2)
                 temp_distance = pow(temp_distance, 0.5)
-                distance_graph[i][j] =float(int(temp_distance + 0.5)) # 已经计算好各点之间的距离
+                distance_graph[i][j] =float(int(temp_distance + 0.5)) # 已经计算好各点之间的距离(50 x 50)
+                
         distance_graph[start_index][end_index] = 1000000
         
     
@@ -275,7 +283,7 @@ class TSP(object):
     def clear(self):
         for item in self.canvas.find_all():
             self.canvas.delete(item)
- 
+
     # 退出程序
     def quite(self, evt):
         self.__lock.acquire()
