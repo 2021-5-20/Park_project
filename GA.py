@@ -1,15 +1,20 @@
 import random
+from data_help import *
 import copy
 import time
 #import data
 import sys
 import math
+from tkinter import ALL, EventType
 import tkinter #//GUI模块
 import threading
 from functools import reduce
- 
- 
+import torch 
+model1 = torch.load('model_params_cost.pth')
+model2 = torch.load('model_params2_time.pth')
+model3 = torch.load('model_params3_distance.pth')
 # 参数
+
 '''
 ALPHA:信息启发因子，值越大，则蚂蚁选择之前走过的路径可能性就越大
       ，值越小，则蚁群搜索范围就会减少，容易陷入局部最优
@@ -17,35 +22,22 @@ BETA:Beta值越大,蚁群越就容易选择局部较短路径,这时算法收敛
      加快，但是随机性不高，容易得到局部的相对最优
 '''
 
+# model1表示收费优先 model2表示时间优先，model3表示距离优先
+n = int(input())
+weight = [w[n][i] for i in range(0,3)]
+(ALPHA, BETA, RHO, Q) = (1,5,2,100.0) #需要调整
 
-(ALPHA, BETA, RHO, Q) = (1.0,2.0,0.5,100.0)
-w = [0.25,0.25,0.25,0.25] # w1,w2,w3,w4相应权重
+#w1对应路径的长度，w2对应用户前往目的地时间，w3为停车位收费情况
 
-# 城市数，蚁群
+#   w0*d+w1*r+w2*t+w3*c
+# 城市数，蚁群 
 (city_num, ant_num) = (50,50)
-distance_x = [
-    178,272,176,171,650,499,267,703,408,437,491,74,532,
-    416,626,42,271,359,163,508,229,576,147,560,35,714,
-    757,517,64,314,675,690,391,628,87,240,705,699,258,
-    428,614,36,360,482,666,597,209,201,492,650]
-distance_y = [
-    170,395,198,151,242,556,57,401,305,421,267,105,525,
-    381,244,330,395,169,141,380,153,442,528,329,232,48,
-    498,265,343,120,165,50,433,63,491,275,348,222,288,
-    490,213,524,244,114,104,552,70,425,227,598]
-#城市距离和信息素   
-distance_graph = [ [0.0 for col in range(city_num)] for raw in range(city_num)]
-pheromone_graph = [ [1.0 for col in range(city_num)] for raw in range(city_num)]
+#城市距离和信息素 
+pheromone_graph = [ [1.0 for col in range(park_num)] for raw in range(park_num)]
 start_index = 0
-end_index = 49
+end_index = 999
 #停车场到目标物的距< 2km
-distance_to_park = []
-for i in range(50):
-    
 
-
-
- 
 #----------- 蚂蚁 -----------
 class Ant(object):
  
@@ -64,7 +56,7 @@ class Ant(object):
         self.total_distance = 0.0    # 当前路径的总距离
         self.move_count = 0          # 移动次数
         self.current_city = -1       # 当前停留的城市
-        self.open_table_city = [True for i in range(city_num)] # 探索城市的状态
+        self.open_table_city = [True for i in range(park_num)] # 探索城市的状态
         
         city_index = 0 # 随机初始出生点 random.randint(0,city_num - 1) last version
         self.current_city = city_index
@@ -72,29 +64,32 @@ class Ant(object):
         self.open_table_city[city_index] = False
         self.move_count = 1
     
-    # 选择下一个城市
+
+    # 选择下一个
     def __choice_next_city(self):
-        
         next_city = -1
-        select_citys_prob = [0.0 for i in range(city_num)]  #存储去下个城市的概率
+        select_citys_prob = [0.0 for i in range(park_num)]  #存储去下个城市的概率
         total_prob = 0.0
  
-        # 获取去下一个城市的概率
-        for i in range(city_num):
+        # 获取去下一个的概率
+        for i in rank_index:
             if self.open_table_city[i]:
                 try :
                     # 计算概率：与信息素浓度成正比，与距离成反比（需修改）
-                    select_citys_prob[i] = pow(pheromone_graph[self.current_city][i], ALPHA) * pow((1.0/distance_graph[self.current_city][i]), BETA)
+                    #temp = (distance_graph_[self.current_city][i])
+                    temp = (w[n][0] * distance_graph_[self.current_city][i]  + w[n][1] * user_to_park_time_[i] + w[n][2] * park_cost_[i])
+                    #select_citys_prob[i] = pow(pheromone_graph[self.current_city][i], ALPHA) * pow((1.0/distance_graph[self.current_city][i]), BETA)
+                    select_citys_prob[i] = pow(pheromone_graph[self.current_city][i], ALPHA) * pow(1/temp, BETA)
                     total_prob += select_citys_prob[i]
                 except ZeroDivisionError as e:
                     print ('Ant ID: {ID}, current city: {current}, target city: {target}'.format(ID = self.ID, current = self.current_city, target = i))
                     sys.exit(1)
         
-        # 轮盘选择城市(小技巧)
+        #轮盘选择(小技巧)
         if total_prob > 0.0:
             # 产生一个随机概率,0.0-total_prob
             temp_prob = random.uniform(0.0, total_prob)
-            for i in range(city_num):
+            for i in range(park_num):
                 if self.open_table_city[i]:
                     # 轮次相减
                     temp_prob -= select_citys_prob[i]
@@ -110,11 +105,11 @@ class Ant(object):
         #             break
  
         if (next_city == -1):
-            next_city = random.randint(0, city_num - 1)
+            next_city = random.randint(0, park_num - 1)
             while ((self.open_table_city[next_city]) == False):  # if==False,说明已经遍历过了
-                next_city = random.randint(0, city_num - 1)
+                next_city = random.randint(0, park_num - 1)
     
-        # 返回下一个城市序号
+        # 返回下一个序号
         return next_city
     
     # 计算路径总距离
@@ -147,7 +142,7 @@ class Ant(object):
         self.__clean_data()
  
         # 搜素路径，遍历完所有城市为止
-        while self.move_count < city_num:
+        while self.move_count < park_num:
             # 移动到下一个城市
             next_city =  self.__choice_next_city()
             self.__move(next_city)
@@ -160,7 +155,7 @@ class Ant(object):
         
 class TSP(object):
  
-    def __init__(self, root, width = 800, height = 600, n = city_num):
+    def __init__(self, root, width = 3000, height = 3000, n = park_num):
  
         # 创建画布
         self.root = root                               
@@ -186,14 +181,11 @@ class TSP(object):
         self.new()
  
         # 计算城市之间的距离
-        for i in range(city_num):
-            for j in range(city_num):
-                temp_distance = pow((distance_x[i] - distance_x[j]), 2) + pow((distance_y[i] - distance_y[j]), 2)
-                temp_distance = pow(temp_distance, 0.5)
-                distance_graph[i][j] =float(int(temp_distance + 0.5)) # 已经计算好各点之间的距离(50 x 50)
-                
-        distance_graph[start_index][end_index] = 1000000
         
+        distance_graph[start_index][end_index] = 1000000
+        distance_graph_[start_index][end_index] = 1000000
+        user_to_park_time_[end_index] = 0
+        park_cost_[end_index] = 0
     
  
     # 按键响应程序
@@ -203,6 +195,15 @@ class TSP(object):
         self.root.bind("n", self.new)          # 初始化
         self.root.bind("e", self.search_path)  # 开始搜索
         self.root.bind("s", self.stop)         # 停止搜索
+        self.canvas.bind('<ButtonPress-1>', lambda event: self.canvas.scan_mark(event.x, event.y))
+        self.canvas.bind("<B1-Motion>", lambda event: self.canvas.scan_dragto(event.x, event.y, gain=1))
+   
+    def do_zoom(self,event):
+        x = self.canvas.canvasx(event.x)
+        y = self.canvas.canvasy(event.y)
+        factor = 1.001 ** event.delta
+        self.canvas.scale(ALL, x, y, factor, factor)
+        
  
     # 更改标题
     def title(self, s):
@@ -224,6 +225,7 @@ class TSP(object):
         for i in range(len(distance_x)):
             # 在画布上随机初始坐标
             x = distance_x[i]
+            index = i
             y = distance_y[i]
             self.nodes.append((x, y))
             # 生成节点椭圆，半径为self.__r
@@ -236,7 +238,7 @@ class TSP(object):
             self.nodes2.append(node)
             # 显示坐标
             self.canvas.create_text(x,y-10,              # 使用create_text方法在坐标（302，77）处绘制文字
-                    text = '('+str(x)+','+str(y)+')',    # 所绘制文字的内容
+                    text = '('+str(x)+','+str(y)+','+str(index)+')',    # 所绘制文字的内容
                     fill = 'black'                       # 所绘制文字的颜色为灰色
                 )
         x_green = [distance_x[start_index],distance_x[end_index]]
@@ -258,8 +260,8 @@ class TSP(object):
         #self.line(range(city_num))
         
         # 初始城市之间的距离和信息素
-        for i in range(city_num):
-            for j in range(city_num):
+        for i in range(park_num):
+            for j in range(park_num):
                 pheromone_graph[i][j] = 1.0
         self.ants = [Ant(ID,start_index,end_index) for ID in range(ant_num)]  # 初始蚁群
         self.best_ant = Ant(-1,start_index,end_index)                          # 初始最优解
@@ -283,7 +285,7 @@ class TSP(object):
     def clear(self):
         for item in self.canvas.find_all():
             self.canvas.delete(item)
-
+ 
     # 退出程序
     def quite(self, evt):
         self.__lock.acquire()
@@ -318,7 +320,9 @@ class TSP(object):
                     self.best_ant = copy.deepcopy(ant)
             # 更新信息素
             self.__update_pheromone_gragh()
-            print (u"迭代次数：",self.iter,u"最佳路径总距离：",int(self.best_ant.total_distance-1000000))
+            find_index = self.best_ant.path[1]
+            print(u"迭代次数：",self.iter,u"最佳路径总距离：(m)",int(self.best_ant.total_distance-1000000),u"路径",self.best_ant.path)
+            print(u"               到达目的地时间",user_to_park_time[find_index],u"停车场收费",park_cost[find_index])
             # 连线
             self.line(self.best_ant.path)
             # 设置标题
@@ -326,12 +330,12 @@ class TSP(object):
             # 更新画布
             self.canvas.update()
             self.iter += 1
- 
+            
     # 更新信息素
     def __update_pheromone_gragh(self):
  
         # 获取每只蚂蚁在其路径上留下的信息素
-        temp_pheromone = [[0.0 for col in range(city_num)] for raw in range(city_num)]
+        temp_pheromone = [[0.0 for col in range(park_num)] for raw in range(park_num)]
         for ant in self.ants:
             for i in range(ant.path.__len__()):
                 start, end = ant.path[i-1], ant.path[i]
